@@ -12,3 +12,5 @@ uploads/temp/*
 uploads/tenants/*
 test-results/
 playwright-report/
+*.swp
+*.swo
