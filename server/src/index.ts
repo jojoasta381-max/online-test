@@ -21,6 +21,7 @@ import { legalRouter } from './routes/legal.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
 import { enforceStartupConfig } from './middleware/auth.js';
 import { resolveTenant } from './middleware/tenant.js';
+import { corsMiddleware } from './middleware/corsConfig.js';
 
 dotenv.config();
 
@@ -31,24 +32,7 @@ const PORT = process.env.PORT || 5000;
 app.set('trust proxy', 1);
 
 app.use(securityHeaders);
-
-// Restrictive CORS configuration
-const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
-  ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(s => s.trim())
-  : ['http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    return callback(new Error('Blocked by CORS security policy.'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'x-assessment-token', 'x-tenant-slug', 'x-tenant-id'],
-}));
+app.use(corsMiddleware);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(resolveTenant);
@@ -86,16 +70,21 @@ app.all('/uploads/*', (req, res) => {
 });
 
 // Serve frontend static build if available
-const clientDistDir = path.join(process.cwd(), 'client', 'dist');
-if (fs.existsSync(clientDistDir)) {
-  app.use(express.static(clientDistDir));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-      return next();
-    }
-    res.sendFile(path.join(clientDistDir, 'index.html'));
-  });
-}
+const clientDistDir = fs.existsSync(path.join(process.cwd(), 'client'))
+  ? path.join(process.cwd(), 'client', 'dist')
+  : path.resolve(process.cwd(), '..', 'client', 'dist');
+
+app.use(express.static(clientDistDir));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+    return next();
+  }
+  const indexPath = path.join(clientDistDir, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  next();
+});
 
 // Global error handling middleware (Sanitized for production)
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
