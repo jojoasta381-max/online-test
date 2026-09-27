@@ -10,6 +10,8 @@
     "build:server": "tsc -p server/tsconfig.json",
     "build:client": "vite build client",
     "build": "npm run build:server && npm run build:client",
+    "vercel-build": "prisma generate --schema=server/src/prisma/schema.prisma && npm run build",
+    "postinstall": "prisma generate --schema=server/src/prisma/schema.prisma",
     "db:push": "prisma db push --schema=server/src/prisma/schema.prisma",
     "db:migrate": "prisma migrate deploy --schema=server/src/prisma/schema.prisma",
     "db:seed": "tsx server/src/prisma/seed.ts",

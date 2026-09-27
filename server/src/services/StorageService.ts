@@ -15,7 +15,9 @@ export class StorageService {
   private readonly storageType: 'local' | 's3';
 
   private constructor() {
-    this.uploadsDir = path.join(process.cwd(), 'uploads');
+    this.uploadsDir = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+      ? path.join('/tmp', 'uploads')
+      : path.join(process.cwd(), 'uploads');
     this.storageType = (process.env.STORAGE_DRIVER as 'local' | 's3') || 'local';
     this.ensureDirectories();
   }
@@ -31,8 +33,12 @@ export class StorageService {
     const subfolders = ['resumes', 'proctoring', 'badges', 'temp'];
     for (const folder of subfolders) {
       const dirPath = path.join(this.uploadsDir, folder);
-      if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true });
+      try {
+        if (!fs.existsSync(dirPath)) {
+          fs.mkdirSync(dirPath, { recursive: true });
+        }
+      } catch (err: any) {
+        console.warn(`[STORAGE SERVICE] Could not initialize directory ${dirPath}:`, err.message);
       }
     }
   }

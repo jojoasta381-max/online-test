@@ -13,9 +13,17 @@ import { authenticateToken, optionalAuth, requireRole, AuthenticatedRequest } fr
 export const candidatesRouter = Router();
 
 // Configure Multer for Resume File Uploads
-const uploadDir = path.join(process.cwd(), 'uploads', 'resumes');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+const baseUploadsDir = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+  ? path.join('/tmp', 'uploads')
+  : path.join(process.cwd(), 'uploads');
+
+const uploadDir = path.join(baseUploadsDir, 'resumes');
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err: any) {
+  console.warn('[CANDIDATES] Warning creating uploadDir:', err.message);
 }
 
 const storage = multer.diskStorage({
@@ -501,7 +509,7 @@ candidatesRouter.post('/apply', handleResumeUpload, async (req, res) => {
     // Partition resume into tenant-specific directory
     let resumeUrl = file ? `/uploads/resumes/${file.filename}` : null;
     if (file && job.companyId) {
-      const tenantDir = path.join(process.cwd(), 'uploads', 'tenants', job.companyId, 'resumes');
+      const tenantDir = path.join(baseUploadsDir, 'tenants', job.companyId, 'resumes');
       if (!fs.existsSync(tenantDir)) {
         await fs.promises.mkdir(tenantDir, { recursive: true });
       }
@@ -1222,8 +1230,8 @@ candidatesRouter.get('/:applicationId/snapshots/:filename', authenticateToken, r
     }
 
     const cleanFilename = path.basename(filename);
-    const tenantBaseDir = path.resolve(process.cwd(), 'uploads', 'tenants', application.job.companyId, 'proctoring');
-    const legacyBaseDir = path.resolve(process.cwd(), 'uploads', 'proctoring');
+    const tenantBaseDir = path.resolve(baseUploadsDir, 'tenants', application.job.companyId, 'proctoring');
+    const legacyBaseDir = path.resolve(baseUploadsDir, 'proctoring');
 
     const tenantPath = path.resolve(tenantBaseDir, cleanFilename);
     const legacyPath = path.resolve(legacyBaseDir, cleanFilename);
@@ -1473,7 +1481,7 @@ candidatesRouter.delete('/:applicationId/personal-data', authenticateToken, requ
     }
 
     // 2. Delete all physical webcam proctoring snapshots from disk
-    const tenantProctoringDir = path.resolve(process.cwd(), 'uploads', 'tenants', application.job.companyId, 'proctoring');
+    const tenantProctoringDir = path.resolve(baseUploadsDir, 'tenants', application.job.companyId, 'proctoring');
     if (fs.existsSync(tenantProctoringDir)) {
       try {
         const files = fs.readdirSync(tenantProctoringDir);

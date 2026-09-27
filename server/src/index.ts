@@ -110,7 +110,7 @@ app.use((err: any, req: express.Request, res: express.Response, _next: express.N
   return res.status(statusCode).json({ success: false, error: safeMessage });
 });
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   enforceStartupConfig();
   app.listen(PORT, (err?: any) => {
     if (err) {

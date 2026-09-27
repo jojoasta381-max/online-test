@@ -78,7 +78,10 @@ export class RetentionService {
     });
 
     let purgedCount = 0;
-    const tenantProctoringDir = path.resolve(process.cwd(), 'uploads', 'tenants', companyId, 'proctoring');
+    const baseUploadsDir = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+      ? path.join('/tmp', 'uploads')
+      : path.join(process.cwd(), 'uploads');
+    const tenantProctoringDir = path.resolve(baseUploadsDir, 'tenants', companyId, 'proctoring');
 
     if (fs.existsSync(tenantProctoringDir)) {
       try {
